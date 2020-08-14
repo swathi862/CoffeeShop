@@ -64,8 +64,9 @@ namespace CoffeeShopTest
                 var response = await client.GetAsync($"/api/coffees/{fixture.TestCoffee.Id}");
                 string responseBody = await response.Content.ReadAsStringAsync();
                 Coffee singleCoffee = JsonConvert.DeserializeObject<Coffee>(responseBody);
+
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-                //Assert.Equal(fixture.TestCoffee.Title, singleCoffee.Title);
+                Assert.Equal(fixture.TestCoffee.Title, singleCoffee.Title);
             }
         }
         [Fact]
@@ -85,9 +86,70 @@ namespace CoffeeShopTest
                     new StringContent(jsonCoffee, Encoding.UTF8, "application/json"));
                 // Assert
                 Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-
             }
         }
+
+        [Fact]
+        public async Task Edit_NonExistent_Coffee()
+        {
+            using (var client = new APIClientProvider().Client)
+            {
+                // Arrange
+                Coffee editedCoffee = new Coffee()
+                {
+                    Title = "EDITED COFFEE",
+                    BeanType = "New Bean Type"
+                };
+                // Act
+                string jsonCoffee = JsonConvert.SerializeObject(editedCoffee);
+                HttpResponseMessage response = await client.PutAsync($"/api/coffees/-1",
+                    new StringContent(jsonCoffee, Encoding.UTF8, "application/json"));
+                // Assert
+                Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            }
+        }
+
+        [Fact]
+        public async Task Modify_Coffee()
+        {
+            // New last name to change to and test
+            string modifiedBeanType = "Modified Bean Type";
+
+            using (var client = new APIClientProvider().Client)
+            {
+                /*
+                    PUT section
+                */
+                Coffee modifiedCoffee = new Coffee
+                {
+                    Title = "Modified Coffee",
+                    BeanType = modifiedBeanType
+                };
+                var modifiedJSONCoffee = JsonConvert.SerializeObject(modifiedCoffee);
+
+                var response = await client.PutAsync(
+                    "/api/coffees/1",
+                    new StringContent(modifiedJSONCoffee, Encoding.UTF8, "application/json")
+                );
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+                /*
+                    GET section
+                    Verify that the PUT operation was successful
+                */
+                var getCoffee = await client.GetAsync("/api/coffees/1");
+                getCoffee.EnsureSuccessStatusCode();
+
+                string getCoffeeBody = await getCoffee.Content.ReadAsStringAsync();
+                Coffee newCoffee = JsonConvert.DeserializeObject<Coffee>(getCoffeeBody);
+
+                Assert.Equal(HttpStatusCode.OK, getCoffee.StatusCode);
+                Assert.Equal(modifiedBeanType, newCoffee.BeanType);
+            }
+        }
+
         [Fact]
         public async Task Delete_Coffee()
         {
@@ -95,6 +157,16 @@ namespace CoffeeShopTest
             {
                 HttpResponseMessage response = await client.DeleteAsync($"/api/coffees/{fixture.TestCoffee.Id}");
                 Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            }
+        }
+
+        [Fact]
+        public async Task Delete_NonExistent_Coffee()
+        {
+            using (var client = new APIClientProvider().Client)
+            {
+                HttpResponseMessage response = await client.DeleteAsync($"/api/coffees/-1");
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             }
         }
     }
